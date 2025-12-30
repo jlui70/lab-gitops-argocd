@@ -5,7 +5,7 @@ metadata:
   labels:
     app: ecommerce-ui
 spec:
-  replicas: 2
+  replicas: 5
   selector:
     matchLabels:
       app: ecommerce-ui
@@ -13,9 +13,9 @@ spec:
     metadata:
       labels:
         app: ecommerce-ui
-        version: v1
+        version: v2
       annotations:
-        app.version: "v1.0"
+        app.version: "v2.0"
     spec:
       containers:
       - name: ecommerce-ui

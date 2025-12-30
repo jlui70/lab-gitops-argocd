@@ -4,5 +4,5 @@ metadata:
   name: ecommerce-ui-version
   namespace: ecommerce-staging
 data:
-  APP_VERSION: "1.0"
-  VERSION_TEXT: "E-commerce App v1.0"
+  APP_VERSION: "2.0"
+  VERSION_TEXT: "E-commerce App v2.0 🚀"
