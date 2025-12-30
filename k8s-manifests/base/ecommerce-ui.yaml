@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: ecommerce-ui
-        image: 794038226274.dkr.ecr.us-east-1.amazonaws.com/ecommerce/ecommerce-ui:v2.0.2
+        image: rslim087/ecommerce-ui:latest
         ports:
         - containerPort: 4000
           name: http
