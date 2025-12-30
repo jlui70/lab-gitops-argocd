@@ -14,6 +14,8 @@ spec:
       labels:
         app: ecommerce-ui
         version: v1
+      annotations:
+        app.version: "v1.0"
     spec:
       containers:
       - name: ecommerce-ui
@@ -22,6 +24,11 @@ spec:
         - containerPort: 4000
           name: http
         env:
+        - name: APP_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: ecommerce-ui-version
+              key: APP_VERSION
         - name: REACT_APP_PROFILE_API_HOST
           value: "http://profile-management"
         - name: REACT_APP_PRODUCT_API_HOST
