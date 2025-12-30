@@ -13,11 +13,11 @@ spec:
     metadata:
       labels:
         app: ecommerce-ui
-        version: v1
+        version: v2
     spec:
       containers:
       - name: ecommerce-ui
-        image: rslim087/ecommerce-ui:latest
+        image: 794038226274.dkr.ecr.us-east-1.amazonaws.com/ecommerce/ecommerce-ui:v2.0
         ports:
         - containerPort: 4000
           name: http
