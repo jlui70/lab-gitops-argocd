@@ -1,436 +1,430 @@
-# Projeto EKS + Istio + GitOps - Stack DevOps Completa
+# 🚀 Lab GitOps - E-Commerce Platform
 
-<p align="center">
-  <img src="https://img.shields.io/badge/IaC-Terraform-623CE4?style=for-the-badge&logo=terraform&logoColor=white" />
-  <img src="https://img.shields.io/badge/Kubernetes-K8s-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" />
-  <img src="https://img.shields.io/badge/Service_Mesh-Istio-466BB0?style=for-the-badge&logo=istio&logoColor=white" />
-  <img src="https://img.shields.io/badge/GitOps-ArgoCD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white" />
-  <img src="https://img.shields.io/badge/CI/CD-GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white" />
-  <img src="https://img.shields.io/badge/Cloud-AWS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white" />
-  <img src="https://img.shields.io/badge/Observability-Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white" />
-  <img src="https://img.shields.io/badge/Monitoring-Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white" />
-</p>
+> **Demonstração prática de GitOps** com Kubernetes (EKS), Istio Service Mesh e ArgoCD para deploy automatizado de aplicação e-commerce.
 
-> **Stack DevOps Completa:** Terraform (IaC) + EKS (Kubernetes) + Istio (Service Mesh) + ArgoCD (GitOps) + GitHub Actions (CI/CD) + Observabilidade Total para deploy de aplicação E-commerce com 7 microserviços em ambientes Staging e Production.
+[![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4?style=flat-square&logo=terraform)](https://www.terraform.io/)
+[![Kubernetes](https://img.shields.io/badge/K8s-EKS-326CE5?style=flat-square&logo=kubernetes)](https://kubernetes.io/)
+[![Istio](https://img.shields.io/badge/Service_Mesh-Istio-466BB0?style=flat-square&logo=istio)](https://istio.io/)
+[![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-EF7B4D?style=flat-square&logo=argo)](https://argoproj.github.io/cd/)
 
 ---
 
-## 🎯 Objetivo do Projeto
+## 🎯 O Que Este Projeto Demonstra
 
-Demonstrar uma **stack completa de DevOps/GitOps production-grade** com:
-
-- ✅ **Infraestrutura como Código** - Terraform para VPC, EKS, Networking
-- ✅ **Service Mesh** - Istio para controle de tráfego, mTLS e observabilidade
-- ✅ **GitOps** - ArgoCD para Continuous Deployment declarativo
-- ✅ **CI/CD** - GitHub Actions para build, test e deploy automatizado
-- ✅ **Multi-ambiente** - Staging (auto-deploy) e Production (manual approval)
-- ✅ **Observabilidade Total** - Prometheus, Grafana, Kiali, Jaeger
-- ✅ **Rollback em 30s** - Múltiplas estratégias de rollback
-- ✅ **Segurança** - Scanning, secrets management, RBAC, network policies
+✅ **GitOps Puro** - Deploy 100% automatizado via Git (sem `kubectl apply` manual)  
+✅ **Infrastructure as Code** - Terraform gerencia VPC, EKS e toda infraestrutura  
+✅ **Service Mesh** - Istio para controle de tráfego, observabilidade e mTLS  
+✅ **Zero Downtime** - Rolling updates com 3 replicas e health checks  
+✅ **Rollback Simples** - Via `git checkout` ou `git revert`  
+✅ **Rastreabilidade** - Todo deploy tem commit Git com auditoria completa  
 
 ---
 
 ## 🏗️ Arquitetura
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      AWS CLOUD (us-east-1)                      │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  VPC (10.0.0.0/22)                                        │  │
-│  │                                                           │  │
-│  │  ┌──────────────┐        ┌──────────────┐                │  │
-│  │  │ Public 1a    │        │ Public 1b    │                │  │
-│  │  │ 10.0.0.0/26  │        │ 10.0.0.64/26 │                │  │
-│  │  │ NAT Gateway  │        │ NAT Gateway  │                │  │
-│  │  └──────┬───────┘        └───────┬──────┘                │  │
-│  │         │                        │                        │  │
-│  │  ┌──────┴────────────────────────┴──────┐                │  │
-│  │  │     Internet Gateway                 │                │  │
-│  │  └──────────────────────────────────────┘                │  │
-│  │         │                        │                        │  │
-│  │  ┌──────┴───────┐        ┌───────┴──────┐                │  │
-│  │  │ Private 1a   │        │ Private 1b   │                │  │
-│  │  │ 10.0.1.0/26  │        │ 10.0.1.64/26 │                │  │
-│  │  │              │        │              │                │  │
-│  │  │ ┌──────────────────────────────────┐ │                │  │
-│  │  │ │   EKS Cluster (v1.32)            │ │                │  │
-│  │  │ │                                  │ │                │  │
-│  │  │ │   ┌─────────────────────────┐   │ │                │  │
-│  │  │ │   │ Istio Control Plane     │   │ │                │  │
-│  │  │ │   │  - istiod               │   │ │                │  │
-│  │  │ │   │  - Ingress Gateway (NLB)│   │ │                │  │
-│  │  │ │   └─────────────────────────┘   │ │                │  │
-│  │  │ │                                  │ │                │  │
-│  │  │ │   ┌─────────────────────────┐   │ │                │  │
-│  │  │ │   │ Namespace: ecommerce    │   │ │                │  │
-│  │  │ │   │  + Frontend (React)     │   │ │                │  │
-│  │  │ │   │  + Product Catalog v1   │   │ │                │  │
-│  │  │ │   │  + Product Catalog v2   │   │ │                │  │
-│  │  │ │   │  + MongoDB              │   │ │                │  │
-│  │  │ │   │                         │   │ │                │  │
-│  │  │ │   │  Canary: 80% v1 / 20% v2│   │ │                │  │
-│  │  │ │   └─────────────────────────┘   │ │                │  │
-│  │  │ │                                  │ │                │  │
-│  │  │ │   ┌─────────────────────────┐   │ │                │  │
-│  │  │ │   │ Observability Stack     │   │ │                │  │
-│  │  │ │   │  - Prometheus           │   │ │                │  │
-│  │  │ │   │  - Grafana              │   │ │                │  │
-│  │  │ │   │  - Kiali                │   │ │                │  │
-│  │  │ │   │  - Jaeger               │   │ │                │  │
-│  │  │ │   └─────────────────────────┘   │ │                │  │
-│  │  │ │                                  │ │                │  │
-│  │  │ │   3x Nodes t3.medium             │ │                │  │
-│  │  │ └──────────────────────────────────┘ │                │  │
-│  │  └──────────────────────────────────────┘                │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────┐       ┌──────────────┐       ┌─────────────┐
+│   GitHub    │──────▶│   ArgoCD     │──────▶│ Kubernetes  │
+│ (Git Repo)  │       │ (GitOps)     │       │   (EKS)     │
+└─────────────┘       └──────────────┘       └─────────────┘
+      ▲                                              │
+      │                                              ▼
+      │                                       ┌─────────────┐
+      │                                       │   Istio     │
+      │                                       │ Service Mesh│
+      │                                       └─────────────┘
+      │                                              │
+      └──────────────────────────────────────────────┘
+                  Git como Fonte Única da Verdade
 ```
+
+**Stack:**
+- **Cloud:** AWS (EKS, ECR, VPC, ALB)
+- **IaC:** Terraform
+- **Orchestration:** Kubernetes 1.28+
+- **Service Mesh:** Istio 1.27
+- **GitOps:** ArgoCD
+- **App:** React 18 + Express.js + 6 microserviços
 
 ---
 
-## � Novidade: GitOps Implementation
+## 🚀 Quick Start
 
-Este projeto agora inclui **implementação completa de GitOps** com ArgoCD e GitHub Actions!
-
-### **O que há de novo:**
-
-- 🔄 **ArgoCD** - Continuous Deployment declarativo (Git → Kubernetes)
-- 🤖 **GitHub Actions** - CI/CD pipeline completo (Build → Test → Deploy)
-- 🌍 **Multi-ambiente** - Staging (auto-deploy) e Production (manual approval)
-- 🐳 **Dockerfiles** - Production-ready para todos os microserviços
-- 📦 **Kustomize** - Gerenciamento de manifests por ambiente
-- ↩️ **Rollback rápido** - 30 segundos via ArgoCD
-- 🔐 **Segurança** - Scanning, secrets, RBAC
-
-### **Quick Start GitOps:**
+### Pré-requisitos
 
 ```bash
-# Deploy completo (infra + GitOps)
-./scripts/deploy-gitops-stack.sh
-
-# Ver status
-./scripts/get-status.sh
+# Ferramentas necessárias
+- AWS CLI 2.x configurado
+- kubectl 1.28+
+- Terraform 1.6+
+- Git 2.x+
 ```
 
-**📚 Documentação GitOps completa:** [GITOPS-GUIDE.md](GITOPS-GUIDE.md)  
-**🚀 Quick Start:** [QUICK-START.md](QUICK-START.md)  
-**📊 Resumo da Implementação:** [IMPLEMENTATION-SUMMARY.md](IMPLEMENTATION-SUMMARY.md)
-
----
-
-## 📦 Componentes do Projeto
-
-### **Terraform Stacks:**
-
-| Stack | Descrição | Recursos | Tempo |
-|-------|-----------|----------|-------|
-| **00-backend** | S3 + DynamoDB para state | 3 | ~1 min |
-| **01-networking** | VPC + Subnets + NAT Gateways | 21 | ~2 min |
-| **02-eks-cluster** | EKS + Node Group + Add-ons | 39 | ~15 min |
-
-### **GitOps Components:** ✨ NOVO
-
-| Componente | Descrição | Localização |
-|------------|-----------|-------------|
-| **ArgoCD** | GitOps continuous deployment | `argocd/` |
-| **GitHub Actions** | CI/CD pipelines | `.github/workflows/` |
-| **Kustomize Manifests** | K8s configs por ambiente | `k8s-manifests/` |
-| **Dockerfiles** | Container definitions | `microservices/` |
-| **Automation Scripts** | Deploy e status scripts | `scripts/` |
-
-### **Istio Components:**
-
-- 🕸️ **Istio Service Mesh** (v1.27.0)
-  - Control Plane (istiod)
-  - Ingress Gateway (Network Load Balancer)
-  - Sidecar Injection automático
-
-- 📊 **Observability Stack:**
-  - **Prometheus** - Coleta de métricas
-  - **Grafana** - Visualização de dashboards
-  - **Kiali** - Topologia de serviços e tráfego
-  - **Jaeger** - Distributed tracing
-
-### **Aplicação E-commerce:**
-
-- **Frontend** (React) - Interface do usuário
-- **Product Catalog v1** - Versão original (80% do tráfego)
-- **Product Catalog v2** - Nova versão (20% do tráfego - Canary)
-- **MongoDB** - Banco de dados
-
----
-
-## 🚀 Deploy Automatizado em 4 Comandos
-
-### **Opção 1: Deploy Completo Automatizado** ⭐ RECOMENDADO
+### 1. Deploy Completo (15-20 min)
 
 ```bash
 # Clone o repositório
-git clone https://github.com/jlui70/lab-istio-mesh-kiali-eks-terraform
-cd istio-eks-terraform-complete
+git clone https://github.com/jlui70/lab-gitops-argocd.git
+cd lab-gitops-argocd
 
-# Configure perfil AWS (IMPORTANTE!)
-export AWS_PROFILE=devopsproject  # Perfil que assume terraform-role
+# Configure AWS
+aws configure
+aws eks update-kubeconfig --region us-east-1 --name eks-cluster-istio
 
-# Execute deploy automatizado
-./rebuild-all.sh
+# Deploy completo: Infra + Istio + ArgoCD + App
+./rebuild-all-with-gitops.sh
 ```
 
-**⏱️ Tempo total:** ~35 minutos  
-**💰 Custo AWS:** ~$2 USD (se destruir após 2 horas)
+Após o deploy, acesse:
+- **App E-commerce:** http://<ALB-DNS>/
+- **Kiali Dashboard:** http://<ALB-DNS>:20001/kiali
+- **Grafana:** http://<ALB-DNS>:3000
 
-### **Opção 2: Deploy Passo a Passo**
+### 2. Demonstração GitOps (v1.0 → v2.0)
 
 ```bash
-# 1. Deploy infraestrutura (VPC + EKS)
-./scripts/01-deploy-infra.sh       # ~15 min
-
-# 2. Instalar Istio Service Mesh
-./scripts/02-install-istio.sh      # ~5 min
-
-# 3. Deploy aplicação E-commerce
-./scripts/03-deploy-app.sh         # ~3 min
-
-# 4. Iniciar dashboards de observabilidade
-./scripts/04-start-monitoring.sh   # ~1 min
+# Script interativo completo
+./demo-completa-gitops.sh
 ```
 
----
-
-## 📋 Pré-requisitos
-
-Certifique-se de ter instalado:
-
-- ✅ **AWS Account** com permissões administrativas
-- ✅ **AWS CLI** configurado (v2.x)
-- ✅ **Terraform** (v1.9+)
-- ✅ **kubectl** (compatível com EKS 1.32)
-- ✅ **istioctl** (v1.27.0)
-
-### **Configuração AWS Profile**
+**OU manual:**
 
 ```bash
-# Verifique seu perfil AWS
-aws sts get-caller-identity
+# 1. Verificar v1.0 rodando
+kubectl get deployment ecommerce-ui -n ecommerce-staging
 
-# IMPORTANTE: Use perfil que assume terraform-role
-# O cluster é configurado com access entries para terraform-role
-export AWS_PROFILE=devopsproject
+# 2. Deploy v2.0 via GitOps
+git checkout a6f0d3d  # Commit v2.0
+
+# 3. ArgoCD detecta e aplica automaticamente (3 min)
+# Ou force: kubectl rollout restart deployment/ecommerce-ui -n ecommerce-staging
+
+# 4. Rollback para v1.0
+git checkout 6768cd5  # Commit v1.0
 ```
 
-> ⚠️ **CRÍTICO:** O cluster EKS é criado com access entries para `terraform-role`. Se você usar IAM User diretamente, precisará trocar para um perfil que assume essa role após o deploy para acessar o cluster via kubectl.
-
----
-
-## 💰 Estimativa de Custos AWS
-
-| Cenário | Duração | Custo Estimado |
-|---------|---------|----------------|
-| **Teste Rápido** | 2 horas | ~$2 USD |
-| **Estudo Completo** | 8 horas | ~$8 USD |
-| **24/7 (não recomendado)** | 1 mês | ~$180 USD |
-
-**Principais componentes:**
-- 3x EC2 t3.medium (workers) - ~$50/mês
-- EKS Cluster - ~$73/mês
-- 2x NAT Gateways - ~$65/mês
-- Network Load Balancer - ~$20/mês
-- Transferência de dados - variável
-
-> ⚠️ **IMPORTANTE:** Execute `./destroy-all.sh` após os testes para evitar custos contínuos!
-
----
-
-## 🌐 Acessando os Dashboards
-
-Após deploy completo, acesse:
-
-```bash
-# Prometheus (métricas)
-http://localhost:9090
-
-# Grafana (dashboards)
-http://localhost:3000
-# User: admin | Pass: admin
-
-# Kiali (topologia e canary deployment)
-http://localhost:20001
-# Graph → Namespace: ecommerce → Display: Traffic Distribution
-
-# Jaeger (distributed tracing)
-http://localhost:16686
-```
-
----
-
-## 🎨 Demonstração: Canary Deployment 80/20
-
-### **Passo 1: Gerar tráfego**
-
-```bash
-./test-canary-visual.sh
-```
-
-### **Passo 2: Visualizar no Kiali**
-
-1. Abra **http://localhost:20001**
-2. Vá em **Graph**
-3. Selecione namespace **ecommerce**
-4. Em **Display**, marque **Traffic Distribution**
-5. Você verá:
-   - 80% do tráfego indo para `product-catalog-v1`
-   - 20% do tráfego indo para `product-catalog-v2`
-
-### **Passo 3: Validar Métricas no Prometheus**
-
-Abra **http://localhost:9090** e execute as queries:
-
-**Ver todas as requisições do namespace ecommerce:**
-```promql
-istio_requests_total{destination_service_namespace="ecommerce"}
-```
-
-**Ver distribuição de tráfego por versão (Canary 80/20):**
-```promql
-sum by (destination_service_name, destination_version) (
-  istio_requests_total{destination_service_namespace="ecommerce"}
-)
-```
-
-**Ver taxa de requisições (últimos 5 min):**
-```promql
-rate(istio_requests_total{destination_service_namespace="ecommerce"}[5m])
-```
-
-**Ver latência p99:**
-```promql
-histogram_quantile(0.99, 
-  sum(rate(istio_request_duration_milliseconds_bucket{
-    destination_service_namespace="ecommerce"
-  }[5m])) by (le, destination_service_name)
-)
-```
-
----
-
-## 🗑️ Destruir Infraestrutura
-
-Para evitar custos AWS contínuos:
+### 3. Destroy (Limpeza Completa)
 
 ```bash
 ./destroy-all.sh
 ```
 
-**O script remove automaticamente:**
-- ✅ Namespace ecommerce (aplicação)
-- ✅ Istio Service Mesh
-- ✅ EKS Cluster + Node Group
-- ✅ VPC + Subnets + NAT Gateways
-- ❓ Backend (S3 + DynamoDB) - pergunta antes de deletar
+---
 
-**⏱️ Tempo:** ~15-20 minutos
+## 📁 Estrutura do Projeto
 
-**💰 Custo após destroy:** $0/mês
+```
+lab-gitops-argocd/
+├── 00-backend/              # Terraform backend (S3 + DynamoDB)
+├── 01-networking/           # VPC, subnets, NAT gateways
+├── 02-eks-cluster/          # EKS cluster + node groups + addons
+│
+├── argocd/                  # ArgoCD Applications
+│   └── applications/
+│       ├── staging-app.yaml
+│       └── production-app.yaml
+│
+├── k8s-manifests/           # Kubernetes manifests (GitOps source)
+│   ├── base/                # Base configurations
+│   ├── staging/             # Staging overlay
+│   └── production/          # Production overlay
+│
+├── ecommerce-app-v2/        # Código fonte v2.0
+│   ├── client/              # React frontend
+│   ├── server/              # Express backend
+│   └── Dockerfile
+│
+├── istio/                   # Istio configurations
+│   └── manifests/
+│
+├── scripts/                 # Scripts auxiliares
+│
+├── docs/                    # 📚 Documentação completa
+│   ├── CHECKLIST-PRE-APRESENTACAO.md
+│   ├── DEMO-FROM-SCRATCH.md
+│   ├── README-DEMO.md
+│   └── ROTEIRO-APRESENTACAO-COMPLETO.md
+│
+├── demo-completa-gitops.sh  # 🎬 Demo interativa
+├── rebuild-all-with-gitops.sh
+├── destroy-all.sh
+└── README.md                # 👈 Você está aqui
+```
 
 ---
 
-## 📚 Documentação Adicional
+## 🎬 Demonstração Completa
 
-- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Soluções para 10 problemas comuns
-- **[QUICK-START.md](./QUICK-START.md)** - Referência rápida de comandos
-- **[DEMO-CANARY.md](./DEMO-CANARY.md)** - Guia completo de demonstração Canary
-- **[OBSERVABILITY.md](./OBSERVABILITY.md)** - Dashboards e métricas
-- **[PROJECT-STATUS.md](./PROJECT-STATUS.md)** - Histórico do projeto
-- **[PRE-COMMIT-CHECKLIST.md](./PRE-COMMIT-CHECKLIST.md)** - Checklist para contribuidores
+### Fluxo GitOps: v1.0 → v2.0
+
+```bash
+# Execute o script interativo
+./demo-completa-gitops.sh
+```
+
+**O que o script demonstra:**
+
+1. ✅ **v1.0 em produção** - App funcionando com mensagem original
+2. ✅ **Simular uso** - Navegação, compras, APIs
+3. ✅ **Mudança de código** - Dev comita alteração (Versão 2.0 🚀)
+4. ✅ **ArgoCD sync** - Detecta mudança no Git automaticamente
+5. ✅ **Rolling update** - Kubernetes aplica mudança (zero downtime)
+6. ✅ **v2.0 validada** - Nova versão funcionando perfeitamente
+7. ✅ **Rollback** - Volta para v1.0 via Git
+
+**Tempo total:** ~25 minutos
+
+---
+
+## 🔑 Commits Importantes
+
+```bash
+# Ver histórico
+git log --oneline --graph
+
+# Commits principais:
+a6f0d3d - Deploy v2.0 (mensagem "Versão 2.0 🚀")
+6768cd5 - Rollback v1.0 (imagem rslim087)
+```
+
+**Para testar:**
+
+```bash
+# Deploy v2.0
+git checkout a6f0d3d
+
+# Rollback v1.0
+git checkout 6768cd5
+```
+
+---
+
+## 📚 Documentação
+
+- **[Demonstração do Zero](docs/DEMO-FROM-SCRATCH.md)** - Guia completo passo a passo
+- **[Roteiro de Apresentação](docs/ROTEIRO-APRESENTACAO-COMPLETO.md)** - Timing e boas práticas
+- **[Checklist Pré-Apresentação](docs/CHECKLIST-PRE-APRESENTACAO.md)** - Validação antes do demo
+- **[README Demo](docs/README-DEMO.md)** - Quick reference
+- **[README Original](docs/README-ORIGINAL.md)** - Documentação técnica completa
+
+---
+
+## 🎓 Conceitos GitOps Demonstrados
+
+### ✅ Git como Fonte Única da Verdade
+
+- Todo estado desejado está no Git
+- Cluster Kubernetes converge para o estado declarado
+- Auditoria completa via `git log`
+
+### ✅ Deploy Declarativo (não Imperativo)
+
+```bash
+# ❌ Modo tradicional (imperativo)
+kubectl apply -f deployment.yaml
+kubectl set image deployment/app app=v2.0
+
+# ✅ GitOps (declarativo)
+git commit -m "Update to v2.0"
+git push
+# ArgoCD aplica automaticamente
+```
+
+### ✅ Sincronização Automática
+
+- ArgoCD faz polling do Git (3 min)
+- Detecta diferenças: Git ↔ Cluster
+- Aplica mudanças automaticamente
+- Self-healing: corrige drift
+
+### ✅ Rollback Simples e Seguro
+
+```bash
+# Rollback via Git
+git revert HEAD
+git push
+
+# OU
+git checkout <commit-anterior>
+git push --force
+```
+
+---
+
+## 🛠️ Comandos Úteis
+
+### Verificar Status
+
+```bash
+# Cluster
+kubectl get nodes
+kubectl get pods -A
+
+# Aplicação
+kubectl get deployment ecommerce-ui -n ecommerce-staging
+kubectl get pods -n ecommerce-staging -l app=ecommerce-ui
+
+# ArgoCD
+kubectl get application -n argocd
+kubectl describe application ecommerce-staging -n argocd
+```
+
+### Testar APIs
+
+```bash
+APP_URL="http://$(kubectl get svc istio-ingressgateway -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+
+# Products API
+curl -s $APP_URL/api/products | jq 'length'  # Deve retornar: 12
+
+# Inventory API
+curl -s $APP_URL/api/inventory | jq 'length'  # Deve retornar: 12
+```
+
+### Forçar Deploy
+
+```bash
+# Se ArgoCD demorar, force restart
+kubectl rollout restart deployment/ecommerce-ui -n ecommerce-staging
+kubectl rollout status deployment/ecommerce-ui -n ecommerce-staging
+```
+
+### Logs e Debug
+
+```bash
+# Ver logs da aplicação
+kubectl logs -n ecommerce-staging -l app=ecommerce-ui --tail=50
+
+# Ver eventos
+kubectl get events -n ecommerce-staging --sort-by='.lastTimestamp'
+
+# Descrever pod
+kubectl describe pod <pod-name> -n ecommerce-staging
+```
 
 ---
 
 ## 🔧 Troubleshooting
 
-### **Erro: "Kubernetes cluster unreachable"**
+### ArgoCD não sincroniza?
 
-**Causa:** Perfil AWS incorreto.
-
-**Solução:**
 ```bash
-export AWS_PROFILE=devopsproject  # Perfil que assume terraform-role
-aws eks update-kubeconfig --region us-east-1 --name eks-devopsproject-cluster
-kubectl get nodes
+# Verificar status
+kubectl get application ecommerce-staging -n argocd
+
+# Ver detalhes
+kubectl describe application ecommerce-staging -n argocd
+
+# Forçar sync
+kubectl rollout restart deployment/ecommerce-ui -n ecommerce-staging
 ```
 
-Veja mais soluções em [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+### Aplicação não responde?
+
+```bash
+# Verificar pods
+kubectl get pods -n ecommerce-staging
+
+# Ver logs
+kubectl logs -n ecommerce-staging -l app=ecommerce-ui
+
+# Verificar services
+kubectl get svc -n ecommerce-staging
+```
+
+### Problemas com Load Balancer?
+
+```bash
+# Verificar ALB
+kubectl get svc istio-ingressgateway -n istio-system
+
+# Ver eventos do service
+kubectl describe svc istio-ingressgateway -n istio-system
+```
+
+---
+
+## 📊 Observabilidade
+
+Após o deploy, acesse os dashboards:
+
+**Kiali (Service Mesh Visualization):**
+```bash
+# URL com port-forward
+kubectl port-forward svc/kiali -n istio-system 20001:20001
+# Acesse: http://localhost:20001/kiali
+```
+
+**Grafana (Metrics & Dashboards):**
+```bash
+kubectl port-forward svc/grafana -n istio-system 3000:3000
+# Acesse: http://localhost:3000
+```
+
+**Prometheus (Metrics):**
+```bash
+kubectl port-forward svc/prometheus -n istio-system 9090:9090
+# Acesse: http://localhost:9090
+```
+
+---
+
+## 💰 Custos AWS (Estimativa)
+
+| Recurso | Custo/mês | Observação |
+|---------|-----------|------------|
+| EKS Cluster | $73 | Cluster fee fixo |
+| EC2 (2x t3.medium) | ~$60 | Node groups |
+| NAT Gateways (2x) | ~$65 | Alta disponibilidade |
+| ALB | ~$20 | Load balancer |
+| ECR | ~$1 | Storage de imagens |
+| **TOTAL** | **~$220/mês** | Estimativa us-east-1 |
+
+**⚠️ Importante:** Execute `./destroy-all.sh` após testes para evitar custos!
 
 ---
 
 ## 🤝 Contribuindo
 
-Contribuições são bem-vindas! Por favor:
+Este projeto é para fins educacionais e demonstração de conceitos GitOps.
 
-1. Fork o repositório
-2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
-3. Commit suas mudanças (`git commit -m 'feat: Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/MinhaFeature`)
-5. Abra um Pull Request
-
----
-
-## 🙏 Créditos e Agradecimentos
-
-Este projeto foi inspirado e baseado no excelente trabalho de:
-
-### **Rayan Slim**
-- 📹 **Canal YouTube:** [@RayanSlim087](https://www.youtube.com/@RayanSlim087)
-- 🎓 Referência principal para arquitetura Istio Service Mesh
-- 🌟 Agradecimento especial pela didática e conteúdo de qualidade
-
-**Adaptações realizadas neste projeto:**
-- ✅ Automação completa com scripts bash
-- ✅ Integração com Terraform para infraestrutura AWS
-- ✅ Documentação em português
-- ✅ Troubleshooting guide completo
-- ✅ Scripts de destroy robustos
+**Para usar em produção:**
+- [ ] Configurar HTTPS/TLS (ACM + Route53)
+- [ ] Implementar Network Policies
+- [ ] Configurar WAF para ALB
+- [ ] Adicionar CI/CD pipeline (GitHub Actions)
+- [ ] Implementar secret management (AWS Secrets Manager)
+- [ ] Configurar backup/restore
+- [ ] Adicionar testes automatizados
+- [ ] Implementar monitoramento de custos
 
 ---
 
-## 📜 Licença
+## 📞 Links Úteis
 
-Este projeto está sob licença **MIT**. Veja o arquivo [LICENSE](./LICENSE) para mais detalhes.
-
----
-
-## 📞 Contato e Suporte
-
-### 🌐 Conecte-se Comigo
-
-- 📹 **YouTube:** [DevOps Project](https://www.youtube.com/@devops-project)
-- 💼 **Portfólio:** [devopsproject.com.br](https://devopsproject.com.br/)
-- 💻 **GitHub:** [@jlui70](https://github.com/jlui70)
+- **Repositório:** https://github.com/jlui70/lab-gitops-argocd
+- **Terraform Docs:** https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+- **Istio Docs:** https://istio.io/latest/docs/
+- **ArgoCD Docs:** https://argo-cd.readthedocs.io/
+- **Kubernetes Docs:** https://kubernetes.io/docs/
 
 ---
 
-### 🌟 Gostou do Projeto?
+## 📄 Licença
 
-Se este projeto foi útil para você:
+Este projeto é open source e está disponível sob a [MIT License](LICENSE).
 
-- ⭐ Dê uma **estrela** no repositório
-- 🔄 **Compartilhe** com a comunidade
-- 📹 **Inscreva-se** no canal do YouTube
-- 🤝 **Contribua** com melhorias
+---
 
-<div align="center">
+## ✨ Autor
 
-**🚀 Production-grade infrastructure com Terraform + Istio**
+**Lab GitOps Demo**  
+Demonstração prática de GitOps para ambientes Kubernetes
 
-[![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4?style=for-the-badge&logo=terraform)](https://www.terraform.io/)
-[![Istio](https://img.shields.io/badge/Service_Mesh-Istio-466BB0?style=for-the-badge&logo=istio)](https://istio.io/)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-K8s-326CE5?style=for-the-badge&logo=kubernetes)](https://kubernetes.io/)
-[![AWS](https://img.shields.io/badge/Cloud-AWS-FF9900?style=for-the-badge&logo=amazon-aws)](https://aws.amazon.com/)
-
-</div>
+**Stack:** AWS EKS • Istio • ArgoCD • Terraform • React • Express.js
 
 ---
 
 <p align="center">
-  <strong>Desenvolvido com ❤️ para a comunidade brasileira de DevOps, SRE e Cloud Engineering</strong>
+  <sub>Construído com ❤️ para demonstração de conceitos GitOps</sub>
 </p>

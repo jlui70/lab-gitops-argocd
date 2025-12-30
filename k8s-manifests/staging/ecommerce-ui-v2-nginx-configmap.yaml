@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-ui-v2-nginx
+  namespace: ecommerce-staging
+data:
+  default.conf: |
+    server {
+        listen 4000;
+        server_name _;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+
+        # Gzip compression
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+        # Enable sub_filter for HTML injection
+        sub_filter '</head>' '<script>
+          (function() {
+            window.addEventListener("load", function() {
+              setTimeout(function() {
+                const h1Elements = document.querySelectorAll("h1");
+                h1Elements.forEach(h1 => {
+                  if (h1.textContent.includes("Welcome to the E-commerce App") && !h1.textContent.includes("Versão 2.0")) {
+                    h1.textContent = "Welcome to the E-commerce App - Versão 2.0 🚀";
+                  }
+                });
+              }, 100);
+            });
+          })();
+        </script></head>';
+        sub_filter_once on;
+        sub_filter_types text/html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Mock API endpoints for demo purposes
+        location /api/signup {
+            add_header Content-Type application/json;
+            return 200 '{"message":"User registered successfully","userId":"demo-user-001"}';
+        }
+
+        location /api/signin {
+            add_header Content-Type application/json;
+            return 200 '{"message":"Sign in successful","token":"demo-jwt-token","user":{"id":"demo-user-001","username":"demo","email":"demo@example.com"}}';
+        }
+
+        location /api/profile {
+            add_header Content-Type application/json;
+            return 200 '{"id":"demo-user-001","username":"demo","email":"demo@example.com","firstName":"Demo","lastName":"User"}';
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }

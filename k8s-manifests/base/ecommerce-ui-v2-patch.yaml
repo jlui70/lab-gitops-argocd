@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-ui-v2-script
+  namespace: ecommerce-staging
+data:
+  inject-v2.js: |
+    // Script to inject v2.0 version indicator
+    (function() {
+      console.log('🚀 Injecting Version 2.0 indicator...');
+      
+      // Wait for DOM to be ready
+      function injectVersion() {
+        const h1Elements = document.querySelectorAll('h1');
+        
+        h1Elements.forEach(h1 => {
+          if (h1.textContent.includes('Welcome to the E-commerce App') && 
+              !h1.textContent.includes('Versão 2.0')) {
+            h1.textContent = 'Welcome to the E-commerce App - Versão 2.0 🚀';
+            console.log('✅ Version 2.0 indicator injected!');
+          }
+        });
+      }
+      
+      // Try immediately
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectVersion);
+      } else {
+        injectVersion();
+      }
+      
+      // Also observe for React re-renders
+      const observer = new MutationObserver(injectVersion);
+      observer.observe(document.body, { childList: true, subtree: true });
+    })();
