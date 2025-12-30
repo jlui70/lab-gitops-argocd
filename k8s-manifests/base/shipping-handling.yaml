@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-and-handling
+  labels:
+    app: shipping-and-handling
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shipping-and-handling
+  template:
+    metadata:
+      labels:
+        app: shipping-and-handling
+        version: v1
+    spec:
+      containers:
+      - name: shipping-and-handling
+        image: rslim087/shipping-and-handling:1.0.0
+        ports:
+        - containerPort: 8080
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-and-handling
+  labels:
+    app: shipping-and-handling
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app: shipping-and-handling

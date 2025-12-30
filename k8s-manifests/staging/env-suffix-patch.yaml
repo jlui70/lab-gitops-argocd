@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-ui
+spec:
+  template:
+    spec:
+      containers:
+      - name: ecommerce-ui
+        env:
+        - name: REACT_APP_PROFILE_API_HOST
+          value: "http://profile-management-staging"
+        - name: REACT_APP_PRODUCT_API_HOST
+          value: "http://product-catalog-staging"
+        - name: REACT_APP_INVENTORY_API_HOST
+          value: "http://product-inventory-staging"
+        - name: REACT_APP_ORDER_API_HOST
+          value: "http://order-management-staging"
+        - name: REACT_APP_SHIPPING_API_HOST
+          value: "http://shipping-and-handling-staging"
+        - name: REACT_APP_CONTACT_API_HOST
+          value: "http://contact-support-team-staging"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-management
+spec:
+  template:
+    spec:
+      containers:
+      - name: order-management
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "9090"
+        - name: PRODUCT_INVENTORY_API_HOST
+          value: "http://product-inventory-staging"
+        - name: PRODUCT_CATALOG_API_HOST
+          value: "http://product-catalog-staging"
+        - name: SHIPPING_HANDLING_API_HOST
+          value: "http://shipping-and-handling-staging"

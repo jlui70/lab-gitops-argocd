@@ -1,0 +1,182 @@
+name: CI/CD - Product Catalog
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'microservices/product-catalog/**'
+      - '.github/workflows/product-catalog.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'microservices/product-catalog/**'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: ecommerce/product-catalog
+  SERVICE_NAME: product-catalog
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./microservices/product-catalog
+          push: false
+          load: true
+          tags: ${{ env.SERVICE_NAME }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Test Docker image
+        run: |
+          echo "Running container health check..."
+          docker run -d --name test-container -p 3001:3001 ${{ env.SERVICE_NAME }}:test
+          sleep 10
+          
+          # Check if container is running
+          if [ "$(docker inspect -f '{{.State.Running}}' test-container)" != "true" ]; then
+            echo "Container failed to start"
+            docker logs test-container
+            exit 1
+          fi
+          
+          # Check health endpoint
+          docker exec test-container curl -f http://localhost:3001/health || exit 1
+          
+          echo "✓ Container health check passed"
+          docker stop test-container
+      
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.SERVICE_NAME }}:test
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build, tag, and push image to ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: staging-${{ github.sha }}
+        run: |
+          cd microservices/product-catalog
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:staging-latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:staging-latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Update Kustomize image tag
+        env:
+          IMAGE_TAG: staging-${{ github.sha }}
+        run: |
+          cd k8s-manifests/staging
+          kustomize edit set image ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add kustomization.yaml
+          git commit -m "chore: update ${{ env.SERVICE_NAME }} staging image to $IMAGE_TAG" || echo "No changes to commit"
+          git push
+
+  deploy-production:
+    name: Deploy to Production
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Get version tag
+        id: version
+        run: |
+          if [[ ${{ github.ref }} == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=prod-v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Build, tag, and push image to ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          cd microservices/product-catalog
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:prod-latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:prod-latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Update Kustomize image tag (Production)
+        env:
+          IMAGE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          cd k8s-manifests/production
+          kustomize edit set image ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add kustomization.yaml
+          git commit -m "chore: update ${{ env.SERVICE_NAME }} production image to $IMAGE_TAG" || echo "No changes to commit"
+          git push
+      
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          release_name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            Deployed ${{ env.SERVICE_NAME }} to production
+            Image: ${{ steps.build-image.outputs.image }}
+          draft: false
+          prerelease: false

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-staging
+  labels:
+    name: ecommerce-staging
+    istio-injection: enabled
+    environment: staging

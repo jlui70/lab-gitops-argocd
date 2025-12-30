@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-ui
+  labels:
+    app: ecommerce-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecommerce-ui
+  template:
+    metadata:
+      labels:
+        app: ecommerce-ui
+        version: v1
+    spec:
+      containers:
+      - name: ecommerce-ui
+        image: 794038226274.dkr.ecr.us-east-1.amazonaws.com/ecommerce/ecommerce-ui:v2.0.0
+        ports:
+        - containerPort: 4000
+          name: http
+        env:
+        - name: REACT_APP_PROFILE_API_HOST
+          value: "http://profile-management"
+        - name: REACT_APP_PRODUCT_API_HOST
+          value: "http://product-catalog"
+        - name: REACT_APP_INVENTORY_API_HOST
+          value: "http://product-inventory"
+        - name: REACT_APP_ORDER_API_HOST
+          value: "http://order-management"
+        - name: REACT_APP_SHIPPING_API_HOST
+          value: "http://shipping-and-handling"
+        - name: REACT_APP_CONTACT_API_HOST
+          value: "http://contact-support-team"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecommerce-ui
+  labels:
+    app: ecommerce-ui
+spec:
+  ports:
+  - port: 4000
+    targetPort: 4000
+    name: http
+  selector:
+    app: ecommerce-ui

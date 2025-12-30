@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ecommerce-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/jlui70/istio-eks-terraform-gitops.git
+    targetRevision: HEAD
+    path: k8s-manifests/staging
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce-staging
+  
+  syncPolicy:
+    automated:
+      prune: true        # Remove recursos deletados do Git
+      selfHeal: true     # Corrige drift automático
+      allowEmpty: false  # Não permite deploy de diretório vazio
+    
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  revisionHistoryLimit: 10
+  
+  # ignoreDifferences removido para permitir sync de replicas durante demo
+  # Para produção com HPA, reativar esta configuração:

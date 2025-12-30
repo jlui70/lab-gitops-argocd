@@ -1,0 +1,63 @@
+name: Create ECR Repositories
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  create-repositories:
+    name: Create ECR Repositories
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Create ECR repositories
+        run: |
+          services=(
+            "ecommerce/ecommerce-ui"
+            "ecommerce/product-catalog"
+            "ecommerce/order-management"
+            "ecommerce/product-inventory"
+            "ecommerce/profile-management"
+            "ecommerce/shipping-handling"
+            "ecommerce/contact-support"
+          )
+          
+          for repo in "${services[@]}"; do
+            echo "Creating repository: $repo"
+            aws ecr create-repository \
+              --repository-name "$repo" \
+              --image-scanning-configuration scanOnPush=true \
+              --encryption-configuration encryptionType=AES256 \
+              --region ${{ env.AWS_REGION }} \
+              2>/dev/null || echo "Repository $repo already exists"
+            
+            # Set lifecycle policy to keep only last 10 images
+            aws ecr put-lifecycle-policy \
+              --repository-name "$repo" \
+              --lifecycle-policy-text '{
+                "rules": [{
+                  "rulePriority": 1,
+                  "description": "Keep last 10 images",
+                  "selection": {
+                    "tagStatus": "any",
+                    "countType": "imageCountMoreThan",
+                    "countNumber": 10
+                  },
+                  "action": {
+                    "type": "expire"
+                  }
+                }]
+              }' \
+              --region ${{ env.AWS_REGION }} || true
+          done
+          
+          echo "✓ All ECR repositories created successfully"

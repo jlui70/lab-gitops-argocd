@@ -1,0 +1,9 @@
+# Namespace para a aplicação e-commerce
+# Este namespace terá injeção automática do Istio sidecar habilitada
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce
+  labels:
+    istio-injection: enabled
